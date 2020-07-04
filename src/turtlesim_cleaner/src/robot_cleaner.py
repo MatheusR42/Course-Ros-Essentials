@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 import rospy
-from math import pi
+from math import pi, atan2, sqrt
 from geometry_msgs.msg import Twist
 from turtlesim.msg import Pose
 
@@ -94,6 +94,37 @@ def setDesiredOrientation(desiredAngleRadians):
     isClockwise = relativeAngleRadians > 0
     rotate(1, abs(relativeAngleRadians), isClockwise)
 
+def getDistance(x1, y1, x2, y2):
+    return sqrt((x1-x2)**2 + (y1-y2)**2)
+
+def moveToGoal(goal_pose, distance_tolerance):
+    velocity_message = Twist()
+    loop_rate = rospy.Rate(50)
+
+    while not rospy.is_shutdown():
+        rospy.loginfo("Turtlesim rotate")
+        velocity_message.linear.x = .3*getDistance(turtlesim_pose["x"], turtlesim_pose["y"], goal_pose.x, goal_pose.y)
+        velocity_message.linear.y = 0
+        velocity_message.linear.z = 0
+        velocity_message.angular.x = 0
+        velocity_message.angular.y = 0
+        velocity_message.angular.z = 4*(atan2(goal_pose.y-turtlesim_pose["y"], goal_pose.x-turtlesim_pose["x"]) - turtlesim_pose["theta"])
+        
+        velocity_publisher.publish(velocity_message)
+        loop_rate.sleep()
+
+        print(turtlesim_pose["x"], turtlesim_pose["y"], goal_pose.x, goal_pose.y)
+        print(getDistance(turtlesim_pose["x"], turtlesim_pose["y"], goal_pose.x, goal_pose.y))
+        if getDistance(turtlesim_pose["x"], turtlesim_pose["y"], goal_pose.x, goal_pose.y) < distance_tolerance:
+            rospy.loginfo("reached")
+            break
+
+        velocity_message.linear.x = 0
+        velocity_message.angular.z = 0
+        velocity_publisher.publish(velocity_message)
+
+    
+
 if __name__ == '__main__':
     try:
         rospy.init_node('robot_cleaner_node', anonymous=True)
@@ -104,18 +135,27 @@ if __name__ == '__main__':
         # distance = float(raw_input("Enter distance:"))
         # isFoward = raw_input("Forward: (yes/NO):") 
         # isFoward = (isFoward.lower() == "yes" or isFoward.lower() == 'y')
+        # move(speed, distance, isFoward)
 
         # angular_speed = float(raw_input("Enter angular velocity(degree/sec): "))
-        # angle = float(raw_input("Enter desire angle (degrees):"))
+        # angle = degrees2Radians(float(raw_input("Enter desire angle (degrees):")))
         # isClockwise = raw_input("Clockwise (yes/NO):")
         # isClockwise = isClockwise.lower() == "yes" or isClockwise.lower() == "y"
+        # rotate(angular_speed, angle, isClockwise)
 
         loop_rate = rospy.Rate(.5)
-        setDesiredOrientation(degrees2Radians(180))
+        # setDesiredOrientation(degrees2Radians(180))
+        # loop_rate.sleep()
+        # setDesiredOrientation(degrees2Radians(90))
+        # loop_rate.sleep()
+        # setDesiredOrientation(degrees2Radians(0))
+        
+        goal_pose = Pose()
+        goal_pose.x = 1
+        goal_pose.y = 1
+        goal_pose.theta = 0
+        moveToGoal(goal_pose, 1)
         loop_rate.sleep()
-        setDesiredOrientation(degrees2Radians(90))
-        loop_rate.sleep()
-        setDesiredOrientation(degrees2Radians(0))
 
         # spin() simply keeps python from exiting until this node is stopped
         # rospy.spin()
